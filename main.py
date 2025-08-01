@@ -12,10 +12,10 @@ engine = pyttsx3.init()
 
 # Configure voice settings (can be customized)
 voices = engine.getProperty('voices')
-# for voice in voices:
-#     if "female" in voice.name.lower() or "zira" in voice.name.lower():
-#         engine.setProperty('voice', voice.id)
-        # break
+for voice in voices:
+    if "female" in voice.name.lower() or "zira" in voice.name.lower():
+        engine.setProperty('voice', voice.id)
+        break
 
 # NewsAPI key (used for fetching news)
 newsapi = "f97e360c1f03442fb1f299d6cd033112"
@@ -34,7 +34,7 @@ def aiprocess(command):
     completion = client.chat.completions.create(
         model="mistralai/Mixtral-8x7B-Instruct-v0.1",
         messages=[
-            {"role": "system", "content": "You are a virtual assistant named Jarvis,you take orders from your Mahesh (your master)only."},
+            {"role": "system", "content": "You are a virtual assistant named Sweety,you take orders from your Mahesh (your master)only."},
             {"role": "user", "content": command}
         ]
     )
@@ -47,56 +47,74 @@ def processCommand(c):
         webbrowser.open("https://www.google.com")
     elif "open youtube" in c.lower():
         webbrowser.open("https://www.youtube.com/")
-    elif "open Facebook" in c.lower():
+    elif "open facebook" in c.lower():
         webbrowser.open("https://www.facebook.com")
-    elif "open Twitter" in c.lower():
+    elif "open twitter" in c.lower():
         webbrowser.open("https://www.twitter.com")
-    elif "open Linkedin" in c.lower():  
-        webbrowser.open("https://www.linkedin.com") 
+    elif "open linkedin" in c.lower():
+        webbrowser.open("https://www.linkedin.com")
     elif "open whatsapp" in c.lower():
         webbrowser.open("https://web.whatsapp.com")
     elif "open github" in c.lower():
         webbrowser.open("https://github.com")
-    elif "open Chrome" in c.lower(): 
-        webbrowser.open("https://www.google.com/chrome/") 
-    elif "open Spotify" in c.lower():
+    elif "open chrome" in c.lower():
+        webbrowser.open("https://www.google.com/chrome/")
+    elif "open spotify" in c.lower():
         webbrowser.open("https://open.spotify.com/")
-    
-    # If command starts with "play", try playing the song
+    elif c.lower().startswith("open "):
+        site = c.lower().split("open ")[1].strip()
+        # If user says only the name (e.g., "instagram"), add ".com"
+    if not site.startswith("http"):
+        if "." not in site:
+            site = site + ".com"
+        site = "https://www." + site
+        webbrowser.open(site)
+        speak(f"Opening {site}")
     elif c.lower().startswith("play"):
-        song = c[5:].strip()  # Extract song name after "play"
-        if song in musicLibrary.music:
-            link = musicLibrary.music[song]
-            webbrowser.open(link)
+        song_query = c[5:].strip()
+        if " by " in song_query.lower():
+            parts = song_query.split(" by ")
+            track = parts[0].strip()
+            artist = parts[1].strip()
+            search_query = f"track:{track} artist:{artist}"
         else:
-            musicLibrary.play_song(song)  # Play using Spotify
-            speak(f"Playing {song} on Spotify.")
-
-    # Handle news fetching
+            search_query = song_query
+        results = musicLibrary.sp.search(q=search_query, type='track', limit=1)
+        tracks = results['tracks']['items']
+        if tracks:
+            track_url = tracks[0]['external_urls']['spotify']
+            webbrowser.open(track_url)
+            speak(f"Opening {tracks[0]['name']} by {tracks[0]['artists'][0]['name']} on Spotify.")
+        else:
+            speak("Song not found on Spotify.")
+            print("Song not found on Spotify.")
     elif "news" in c.lower():
-        r = requests.get(f"https://newsapi.org/v2/top-headlines?country=in&apiKey= {newsapi}")
-        if r.status_code == 200: 
+        r = requests.get(f"https://newsapi.org/v2/top-headlines?country=in&apiKey={newsapi}")
+        if r.status_code == 200:
             data = r.json()
-            articales = data.get("articles", [])
-            for article in articales:
+            articles = data.get("articles", [])
+            for article in articles:
                 speak(article['title'])
-
-    # If none of the above, send to AI
+        else:
+            speak("Failed to fetch news.")
+            print("Failed to fetch news.")
     else:
-        output = aiprocess(c)
-        speak(output)
+        # If command is not recognized, answer as a question using AI
+        answer = aiprocess(c)
+        print(f"Jarvis: {answer}")
+        speak(answer)
 
 # Main program loop
 if __name__ == "__main__":
-    speak("Initializing Jarvis......")  # Start message
+    speak("Jarvis, on your service......")  # Start message
     r = sr.Recognizer()
 
-    # Calibrate for background noise
+    # Calibrate for background noise once
     with sr.Microphone() as source:
         r.adjust_for_ambient_noise(source, duration=1)
         print("Calibrated for ambient noise.")
-    
-    activated = False  # Track whether Jarvis is active
+
+    activated = False  # Track whether Sweety is active
 
     while True:
         try:
@@ -106,12 +124,11 @@ if __name__ == "__main__":
                     audio = r.listen(source, timeout=5, phrase_time_limit=5)
                     word = r.recognize_google(audio)
                     print(f"Heard: {word}")
-                    if word.lower() == "jarvis":
+                    if word.lower() == "Jarvis":
                         speak("Yaa, How may I help you.")
                         activated = True
                 else:
                     print("Listening for command...")
-                    r.adjust_for_ambient_noise(source, duration=0.3)
                     audio = r.listen(source, timeout=5, phrase_time_limit=7)
                     try:
                         command = r.recognize_google(audio)
@@ -128,4 +145,4 @@ if __name__ == "__main__":
         except sr.UnknownValueError:
             print("Sorry, I did not understand that, there is noise around you.")
         except Exception as e:
-            print("Error!; {0}".format(e))
+            print(f"Error!; {e}")
